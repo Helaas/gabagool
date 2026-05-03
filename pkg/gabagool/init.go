@@ -82,9 +82,10 @@ func Init(options Options) {
 		// Detect power button input device path based on platform.
 		// tg5040: /dev/input/event1 for power button, button code 116.
 		// tg5050: /dev/input/event2 for power button, button code 116.
-		// my355:  /dev/input/event2 for power button, button code 102.
+		// my355:  /dev/input/event2 for power button, usually button code 116.
 		powerDevicePath := "/dev/input/unknown"
 		powerButtonCode := -1 // BUTTON_NA
+		var powerButtonCodes []int
 
 		platformEnv := strings.ToLower(strings.TrimSpace(os.Getenv("PLATFORM")))
 		if strings.Contains(platformEnv, "tg5040") {
@@ -95,16 +96,17 @@ func Init(options Options) {
 			powerButtonCode = 116 // BUTTON_POWER
 		} else if strings.Contains(platformEnv, "my355") {
 			powerDevicePath = "/dev/input/event2"
-			powerButtonCode = 102 // CODE_POWER for my355
+			powerButtonCode = 116              // KEY_POWER
+			powerButtonCodes = []int{116, 102} // Some my355 stacks expose power as 102.
 		}
 
 		pbc = internal.PowerButtonConfig{
-			ButtonCode:      powerButtonCode,
-			DevicePath:      powerDevicePath,
-			ShortPressMax:   2 * time.Second,
-			CoolDownTime:    1 * time.Second,
-			SuspendScript:   "/mnt/SDCARD/.system/" + platformEnv + "/bin/suspend",
-			ShutdownCommand: "/sbin/poweroff", // TODO: touch /tmp/poweroff and exit
+			ButtonCode:    powerButtonCode,
+			ButtonCodes:   powerButtonCodes,
+			DevicePath:    powerDevicePath,
+			ShortPressMax: 2 * time.Second,
+			CoolDownTime:  1 * time.Second,
+			SuspendScript: "/mnt/SDCARD/.system/" + platformEnv + "/bin/suspend",
 		}
 		internal.SetTheme(theme)
 	} else if options.IsCannoli {

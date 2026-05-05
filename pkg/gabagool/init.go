@@ -84,25 +84,22 @@ func Init(options Options) {
 		// tg5050: /dev/input/event2 for power button, button code 116.
 		// my355:  /dev/input/event2 for power button, usually button code 116.
 		powerDevicePath := "/dev/input/unknown"
-		powerButtonCode := -1 // BUTTON_NA
-		var powerButtonCodes []int
+		var buttonCodes []int
 
 		platformEnv := strings.ToLower(strings.TrimSpace(os.Getenv("PLATFORM")))
 		if strings.Contains(platformEnv, "tg5040") {
 			powerDevicePath = "/dev/input/event1"
-			powerButtonCode = 116 // BUTTON_POWER
+			buttonCodes = []int{116} // BUTTON_POWER
 		} else if strings.Contains(platformEnv, "tg5050") {
 			powerDevicePath = "/dev/input/event2"
-			powerButtonCode = 116 // BUTTON_POWER
+			buttonCodes = []int{116} // BUTTON_POWER
 		} else if strings.Contains(platformEnv, "my355") {
 			powerDevicePath = "/dev/input/event2"
-			powerButtonCode = 116              // KEY_POWER
-			powerButtonCodes = []int{116, 102} // Some my355 stacks expose power as 102.
+			buttonCodes = []int{116, 102} // Some my355 stacks expose power as 102.
 		}
 
 		pbc = internal.PowerButtonConfig{
-			ButtonCode:    powerButtonCode,
-			ButtonCodes:   powerButtonCodes,
+			ButtonCodes:   buttonCodes,
 			DevicePath:    powerDevicePath,
 			ShortPressMax: 2 * time.Second,
 			CoolDownTime:  1 * time.Second,

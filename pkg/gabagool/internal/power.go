@@ -12,7 +12,6 @@ import (
 )
 
 type PowerButtonConfig struct {
-	ButtonCode    int
 	ButtonCodes   []int
 	DevicePath    string
 	ShortPressMax time.Duration
@@ -21,9 +20,6 @@ type PowerButtonConfig struct {
 }
 
 func (c PowerButtonConfig) matchesButton(code evdev.EvCode) bool {
-	if code == evdev.EvCode(c.ButtonCode) {
-		return true
-	}
 	for _, buttonCode := range c.ButtonCodes {
 		if code == evdev.EvCode(buttonCode) {
 			return true
@@ -38,7 +34,7 @@ type stoppableTimer interface {
 
 type powerButtonState struct {
 	config        PowerButtonConfig
-	pressTime     time.Time
+	pressed       bool
 	holdTimer     stoppableTimer
 	cooldownUntil time.Time
 
@@ -65,20 +61,21 @@ func (s *powerButtonState) handleValue(value int32) {
 
 	switch value {
 	case 1:
-		s.pressTime = s.now()
+		s.pressed = true
 		if s.holdTimer != nil {
 			s.holdTimer.Stop()
 		}
 		s.holdTimer = s.afterFunc(s.config.ShortPressMax, func() {
+			// Safe: s.shutdown is fixed during construction and never mutated.
 			log.Println("Button held for 2 seconds, signaling shutdown...")
 			s.shutdown()
 		})
 	case 0:
-		if s.pressTime.IsZero() {
+		if !s.pressed {
 			return
 		}
 
-		s.pressTime = time.Time{}
+		s.pressed = false
 		stopped := false
 		if s.holdTimer != nil {
 			stopped = s.holdTimer.Stop()
@@ -131,10 +128,12 @@ func runScript(scriptPath string) {
 func signalPoweroffAndExit() {
 	f, err := os.Create("/tmp/poweroff")
 	if err != nil {
-		log.Printf("Failed to touch /tmp/poweroff: %v", err)
-	} else {
-		_ = f.Close()
+		log.Printf("Failed to touch /tmp/poweroff: %v - falling back to /sbin/poweroff", err)
+		_ = exec.Command("/sbin/poweroff").Run()
+		os.Exit(1)
+		return
 	}
+	_ = f.Close()
 	syscall.Sync()
 	os.Exit(0)
 }
